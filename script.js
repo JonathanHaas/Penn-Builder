@@ -367,6 +367,8 @@ let state = loadState();
 let undoStack = [];
 let redoStack = [];
 let saveTimer = null;
+let cmsSaveTimer = null;
+let cmsEnabled = window.location.protocol !== "file:";
 let pointerDrag = null;
 let suppressNextSectionClick = false;
 
@@ -505,66 +507,70 @@ function groupById(groupId) {
   return state.groups.find((group) => group.id === groupId) || state.groups[0];
 }
 
+function normalizeStoredState(storedState) {
+  if (!storedState || storedState.previewId !== PREVIEW_ID) {
+    return structuredClone(starterState);
+  }
+
+  const loadedState = { ...structuredClone(starterState), ...storedState };
+  if (!Object.prototype.hasOwnProperty.call(storedState, "videoSectionSeeded")) {
+    loadedState.videoSectionSeeded = false;
+  }
+  if (!Object.prototype.hasOwnProperty.call(storedState, "cardsSectionSeeded")) {
+    loadedState.cardsSectionSeeded = false;
+  }
+  if (!Object.prototype.hasOwnProperty.call(storedState, "eventsSectionSeeded")) {
+    loadedState.eventsSectionSeeded = false;
+  }
+  if (!Object.prototype.hasOwnProperty.call(storedState, "externalLinkIcons")) {
+    loadedState.externalLinkIcons = Object.prototype.hasOwnProperty.call(storedState, "footerExternalIcons")
+      ? storedState.footerExternalIcons
+      : true;
+  }
+  ensureGroups(loadedState);
+  if (!Object.prototype.hasOwnProperty.call(storedState, "typographyDefaultsUpdated")) {
+    if (loadedState.font === "EB Garamond" && loadedState.secondaryFont === "Roboto") {
+      loadedState.font = "Roboto";
+      loadedState.secondaryFont = "EB Garamond";
+    }
+    loadedState.typographyDefaultsUpdated = true;
+  }
+  if (loadedState.sections && loadedState.sections[0] && loadedState.sections[0].id === "hero" && loadedState.sections[0].layout === "feature") {
+    loadedState.sections[0].layout = "hero";
+    if (loadedState.sections[0].featureImage && !loadedState.sections[0].heroImage) {
+      loadedState.sections[0].heroImage = loadedState.sections[0].featureImage;
+    }
+  }
+  if (loadedState.sections) {
+    loadedState.sections.forEach((section) => {
+      if (layoutHasButton(section.layout) && !section.buttonUrl) {
+        section.buttonUrl = DEFAULT_BUTTON_URL;
+      }
+    });
+    const defaultQuoteSection = loadedState.sections.find((section) => section.layout === "quote");
+    if (
+      defaultQuoteSection &&
+      defaultQuoteSection.heading === "Creating knowledge to benefit the world." &&
+      defaultQuoteSection.body === "A Penn-inspired close for the preview: ambitious, civic-minded, research-driven, and grounded in a historic campus community."
+    ) {
+      defaultQuoteSection.heading = "Benjamin Franklin";
+      defaultQuoteSection.body = "Well done is better than well said";
+    }
+  }
+  replaceBrokenPreviewImages(loadedState);
+  ensureCardsSection(loadedState);
+  ensureEventsSection(loadedState);
+  ensureVideoSection(loadedState);
+  ensureGroups(loadedState);
+  return loadedState;
+}
+
 function loadState() {
   const stored = localStorage.getItem("website-builder-state");
   if (!stored) return structuredClone(starterState);
 
   try {
-    const storedState = JSON.parse(stored);
-    if (storedState.previewId !== PREVIEW_ID) {
-      return structuredClone(starterState);
-    }
-    const loadedState = { ...structuredClone(starterState), ...storedState };
-    if (!Object.prototype.hasOwnProperty.call(storedState, "videoSectionSeeded")) {
-      loadedState.videoSectionSeeded = false;
-    }
-    if (!Object.prototype.hasOwnProperty.call(storedState, "cardsSectionSeeded")) {
-      loadedState.cardsSectionSeeded = false;
-    }
-    if (!Object.prototype.hasOwnProperty.call(storedState, "eventsSectionSeeded")) {
-      loadedState.eventsSectionSeeded = false;
-    }
-    if (!Object.prototype.hasOwnProperty.call(storedState, "externalLinkIcons")) {
-      loadedState.externalLinkIcons = Object.prototype.hasOwnProperty.call(storedState, "footerExternalIcons")
-        ? storedState.footerExternalIcons
-        : true;
-    }
-    ensureGroups(loadedState);
-    if (!Object.prototype.hasOwnProperty.call(storedState, "typographyDefaultsUpdated")) {
-      if (loadedState.font === "EB Garamond" && loadedState.secondaryFont === "Roboto") {
-        loadedState.font = "Roboto";
-        loadedState.secondaryFont = "EB Garamond";
-      }
-      loadedState.typographyDefaultsUpdated = true;
-    }
-    if (loadedState.sections && loadedState.sections[0] && loadedState.sections[0].id === "hero" && loadedState.sections[0].layout === "feature") {
-      loadedState.sections[0].layout = "hero";
-      if (loadedState.sections[0].featureImage && !loadedState.sections[0].heroImage) {
-        loadedState.sections[0].heroImage = loadedState.sections[0].featureImage;
-      }
-    }
-    if (loadedState.sections) {
-      loadedState.sections.forEach((section) => {
-        if (layoutHasButton(section.layout) && !section.buttonUrl) {
-          section.buttonUrl = DEFAULT_BUTTON_URL;
-        }
-      });
-      const defaultQuoteSection = loadedState.sections.find((section) => section.layout === "quote");
-      if (
-        defaultQuoteSection &&
-        defaultQuoteSection.heading === "Creating knowledge to benefit the world." &&
-        defaultQuoteSection.body === "A Penn-inspired close for the preview: ambitious, civic-minded, research-driven, and grounded in a historic campus community."
-      ) {
-        defaultQuoteSection.heading = "Benjamin Franklin";
-        defaultQuoteSection.body = "Well done is better than well said";
-      }
-    }
-    replaceBrokenPreviewImages(loadedState);
-    ensureCardsSection(loadedState);
-    ensureEventsSection(loadedState);
-    ensureVideoSection(loadedState);
-    ensureGroups(loadedState);
-    return loadedState;
+    return normalizeStoredState(JSON.parse(stored));
   } catch {
     return structuredClone(starterState);
   }
@@ -968,12 +974,66 @@ function recordChange(mutator) {
 }
 
 function persist() {
+  persistLocalState();
+  persistCmsState();
+}
+
+function persistLocalState() {
   try {
     localStorage.setItem("website-builder-state", JSON.stringify(state));
     showStatus("Saved");
   } catch {
     showStatus("Preview only");
   }
+}
+
+function persistCmsState() {
+  if (!cmsEnabled) return;
+
+  window.clearTimeout(cmsSaveTimer);
+  cmsSaveTimer = window.setTimeout(() => {
+    fetch("/api/site", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ state })
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("CMS save failed");
+        showStatus("CMS saved");
+      })
+      .catch(() => {
+        cmsEnabled = false;
+        showStatus("Local only");
+      });
+  }, 400);
+}
+
+function loadCmsState() {
+  if (!cmsEnabled) return;
+
+  fetch("/api/site", { cache: "no-store" })
+    .then((response) => {
+      if (!response.ok) throw new Error("CMS unavailable");
+      return response.json();
+    })
+    .then((payload) => {
+      if (!payload || !payload.state) {
+        persistCmsState();
+        return;
+      }
+
+      state = normalizeStoredState(payload.state);
+      undoStack = [];
+      redoStack = [];
+      persistLocalState();
+      render();
+      showStatus("CMS loaded");
+    })
+    .catch(() => {
+      cmsEnabled = false;
+    });
 }
 
 function showStatus(text) {
@@ -3065,3 +3125,4 @@ function bindInputs() {
 
 bindInputs();
 render();
+loadCmsState();

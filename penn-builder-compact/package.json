@@ -1,9 +1,0 @@
-{
-  "name": "penn-builder-compact",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Compact Penn website builder with optional SQLite CMS backend.",
-  "scripts": {
-    "start": "node server.js"
-  }
-}

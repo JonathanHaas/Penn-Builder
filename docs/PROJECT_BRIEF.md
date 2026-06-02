@@ -1,6 +1,6 @@
 # Project Brief
 
-Penn Builder Compact is a self-contained website builder for creating a Penn-styled landing page or microsite preview. The goal is to let a non-technical editor assemble sections, choose visual styling, set navigation groups, preview the result, and download a portable ZIP export.
+Penn Builder is a self-contained website builder for creating a Penn-styled landing page or microsite preview. The goal is to let a non-technical editor assemble sections, choose visual styling, set navigation groups, preview the result, and download a portable ZIP export.
 
 ## Product Goals
 

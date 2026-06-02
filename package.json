@@ -1,0 +1,9 @@
+{
+  "name": "penn-builder",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Penn website builder with optional SQLite CMS backend.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

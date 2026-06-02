@@ -1,6 +1,6 @@
 # Cloudflare Pages Deployment
 
-Penn Builder Compact is ready for GitHub-connected Cloudflare Pages deployment.
+Penn Builder is ready for GitHub-connected Cloudflare Pages deployment.
 
 ## Recommended Pages Settings
 
@@ -8,7 +8,7 @@ In Cloudflare Pages, connect the GitHub repository and use these settings:
 
 ```text
 Production branch: main
-Root directory: penn-builder-compact
+Root directory: /
 Framework preset: None
 Build command: exit 0
 Build output directory: /
@@ -60,7 +60,7 @@ The site still deploys and runs without the D1 binding. In that mode, the builde
 For this project, the fastest GitHub-connected Pages setup is:
 
 ```text
-Root directory: penn-builder-compact
+Root directory: /
 Framework preset: None
 Build command: exit 0
 Build output directory: /
@@ -78,21 +78,21 @@ Cloudflare also offers build caching and Direct Uploads:
 Static-only local preview:
 
 ```sh
-cd penn-builder-compact
+cd "/Users/haasj/Documents/Projects/penn-builder"
 python3 -m http.server 4174
 ```
 
 Local Node + SQLite CMS:
 
 ```sh
-cd penn-builder-compact
+cd "/Users/haasj/Documents/Projects/penn-builder"
 node server.js
 ```
 
 Cloudflare-style local preview with Functions requires Wrangler:
 
 ```sh
-cd penn-builder-compact
+cd "/Users/haasj/Documents/Projects/penn-builder"
 npx wrangler pages dev . --d1 DB=<database-id>
 ```
 
